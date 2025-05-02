@@ -1,4 +1,5 @@
 import os
+import re
 
 
 class Typology:
@@ -23,6 +24,16 @@ class AlumLine:
 
 class App:
     data: list[AlumLine] = []
+
+    # Regex para PERFIL - Ej: PERFIL 123
+    REGEX_PERFIL_SOLO = r'\bPERFIL\s+[A-Za-z0-9]+\b'
+    # Ej: SEGUN tipo PERFIL 123,456
+    REGEX_PERFIL_SEGUN = r'\bSEGUN\s+\w+\s+PERFIL\s+[A-Za-z0-9]+(?:,[A-Za-z0-9]+)*\b'
+
+    # Regex para PARTE (alfanumérico) - Ej: PARTE ABC123
+    REGEX_PARTE_SOLO = r'\bPARTE\s+[A-Za-z0-9]+\b'
+    # Ej: SEGUN tipo PARTE ABC123,DEF456
+    REGEX_PARTE_SEGUN = r'\bSEGUN\s+\w+\s+PARTE\s+[A-Za-z0-9]+(?:,[A-Za-z0-9]+)*\b'
 
     def main(self):
         base_path = 'data'
@@ -60,29 +71,38 @@ class App:
                 try:
                     with open(file_path, 'r', encoding='latin1') as file:
                         for line in file:
-                            if 'PARTE ' in line:
-                                if 'SEGUN' in line:
-                                    accs = line.strip().split(
-                                        'PARTE ')[1].split(',')
-                                    for acc in accs:
-                                        acc = acc.strip().upper()
-                                        typology.accessories.append(acc)
-                                else:
-                                    acc = line.strip().split(
-                                        'PARTE ')[1].upper()
+                            line = line.strip()
+
+                            if '/*' in line or '*/' in line:
+                                continue
+
+                            # Se busca mediante regex si la linea contiene el
+                            # PERFIL o la PARTE para extraer el perfil o accesorio
+                            if re.search(self.REGEX_PERFIL_SEGUN, line):
+                                # Si es un 'SEGUN PERFIL '
+                                profiles = line.split('PERFIL ')[1].split(',')
+
+                                for profile in profiles:
+                                    profile = profile.strip().upper()
+                                    typology.profiles.append(profile)
+
+                            elif re.search(self.REGEX_PERFIL_SOLO, line):
+                                # Si es un 'PERFIL '
+                                profile = line.split('PERFIL ')[1].upper()
+                                typology.profiles.append(profile)
+
+                            elif re.search(self.REGEX_PARTE_SEGUN, line):
+                                # Si es un 'SEGUN PARTE '
+                                accs = line.split('PARTE ')[1].split(',')
+
+                                for acc in accs:
+                                    acc = acc.strip().upper()
                                     typology.accessories.append(acc)
 
-                            if 'PERFIL ' in line:
-                                if 'SEGUN' in line:
-                                    profiles = line.strip().split(
-                                        'PERFIL ')[1].split(',')
-                                    for profile in profiles:
-                                        profile = profile.strip().upper()
-                                        typology.profiles.append(profile)
-                                else:
-                                    profile = line.strip().split(
-                                        'PERFIL ')[1].upper()
-                                    typology.profiles.append(profile)
+                            elif re.search(self.REGEX_PARTE_SOLO, line):
+                                # Si es un 'PARTE '
+                                acc = line.split('PARTE ')[1].upper()
+                                typology.accessories.append(acc)
 
                 except Exception as e:
                     print(f"Error al leer {file_path}: {e}")
